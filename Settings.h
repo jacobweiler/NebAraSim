@@ -293,7 +293,9 @@ class Settings
         //11 : Moore's Bay Model 2
         //20 : Byrd (Ebimuna (1983))
         //30 : Mizuho (Ebimuna (1983))
-              //40: UNL Modified (PA model). Related slide: https://aradocs.wipac.wisc.edu/docs/0022/002222/001/inIceMC_Hughes_A5locations_10222020.pdf
+        //40: UNL Modified (PA model). Related slide: https://aradocs.wipac.wisc.edu/docs/0022/002222/001/inIceMC_Hughes_A5locations_10222020.pdf
+        //41: UNL Modified (PA model) with upward systematics. Related slide: https://aradocs.wipac.wisc.edu/0035/003525/002/5SA_Ice_Model_Uncertainties.pdf
+        //42: UNL Modified (PA model) with downward systematics. Related slide: https://aradocs.wipac.wisc.edu/0035/003525/002/5SA_Ice_Model_Uncertainties.pdf
         
         int WAVEFORM_LENGTH; // the number of samples in the waveform length for V_mimic and UsefulAtriStationEvent, default: 64/2*20 = 640
 
