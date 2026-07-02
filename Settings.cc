@@ -47,6 +47,10 @@ outputdir="outputs"; // directory where outputs go
  SIGMA_SELECT=0; // when in SIGMAPARAM=1 case, 0 : (default) use mean value, 1 : use upper bound, 2 : use lower bound
 
 
+HPOL_GAIN_FILE=string(getenv("ARA_SIM_DIR"))+"/data/antennas/realizedGain/ARA_dipoletest1_output.txt"; // Default to original Ara Data
+VTOP_GAIN_FILE=string(getenv("ARA_SIM_DIR"))+"/data/antennas/realizedGain/ARA_bicone6in_output.txt"; // Default to original Ara Data
+VPOL_GAIN_FILE=string(getenv("ARA_SIM_DIR"))+"/data/antennas/realizedGain/ARA_bicone6in_output.txt"; // Default to original Ara Data
+
 // end of values from icemc
 
  ARASIM_VERSION_MAJOR = ARASIM_MAJOR;
@@ -734,6 +738,30 @@ void Settings::ReadFile(string setupfile) {
               else if (label == "ANTENNA_MODE"){
                   ANTENNA_MODE = atoi(line.substr(line.find_first_of("=") + 1).c_str());
               }
+              else if (label == "VPOL_GAIN_FILE") {
+                  VPOL_GAIN_FILE = ParseFilePath(line);
+                  if (VPOL_GAIN_FILE.empty()) {
+                      std::cerr << "Warning: could not parse path from line: " << line << std::endl;
+                      std::cerr << "Example Input: VPOL_GAIN_FILE=\"path/to/gain/file.txt\"" << std::endl;
+                      std::abort();
+                  }
+              }
+              else if (label == "VTOP_GAIN_FILE") {
+                  VTOP_GAIN_FILE = ParseFilePath(line);
+                  if (VTOP_GAIN_FILE.empty()) {
+                      std::cerr << "Warning: could not parse path from line: " << line << std::endl;
+                      std::cerr << "Example Input: VTOP_GAIN_FILE=\"path/to/gain/file.txt\"" << std::endl;
+                      std::abort();
+                  }
+              }
+              else if (label == "HPOL_GAIN_FILE") {
+                  HPOL_GAIN_FILE = ParseFilePath(line);
+                  if (HPOL_GAIN_FILE.empty()) {
+                      std::cerr << "Warning: could not parse path from line: " << line << std::endl;
+                      std::cerr << "Example Input: HPOL_GAIN_FILE=\"path/to/gain/file.txt\"" << std::endl;
+                      std::abort();
+                  }
+              }
               else if (label == "IMPEDANCE_RX_VPOL"){
                   IMPEDANCE_RX_VPOL = atoi(line.substr(line.find_first_of("=") + 1).c_str());
               }              
@@ -937,49 +965,51 @@ int Settings::CheckCompatibilitiesDetector(Detector *detector) {
     }
 
     // check if the antenna gain is falling fast enough at low frequencies
-    {
-        double freq0 = detector->GetFreq(0); 
-        double freq1 = detector->GetFreq(1); 
-
-        // Vpols
+    if (ANTENNA_MODE != 6){
         {
-            double gain0 = detector->GetGainBin(0, 0, 0, 0, 0, 0);
-            double gain1 = detector->GetGainBin(1, 0, 0, 0, 0, 0);
+            double freq0 = detector->GetFreq(0); 
+            double freq1 = detector->GetFreq(1); 
 
-            // calculate quantity proportional to heff
-            double heff0 = gain0 / freq0 / freq0; 
-            double heff1 = gain1 / freq1 / freq1;
-            if(heff0 > heff1) {
-                cerr << "Vpol antenna gain may not be falling fast enough! Effective height may grow and introduce power at low frequencies." << endl;
-                num_err++;
+            // Vpols
+            {
+                double gain0 = detector->GetGainBin(0, 0, 0, 0, 0, 0);
+                double gain1 = detector->GetGainBin(1, 0, 0, 0, 0, 0);
+
+                // calculate quantity proportional to heff
+                double heff0 = gain0 / freq0 / freq0; 
+                double heff1 = gain1 / freq1 / freq1;
+                if(heff0 > heff1) {
+                    cerr << "Vpol antenna gain may not be falling fast enough! Effective height may grow and introduce power at low frequencies." << endl;
+                    num_err++;
+                }
             }
-        }
-        
-        // TVpols
-        {
-            double gain0 = detector->GetGainBin(0, 0, 0, 0, 0, 2);
-            double gain1 = detector->GetGainBin(1, 0, 0, 0, 0, 2);
+            
+            // TVpols
+            {
+                double gain0 = detector->GetGainBin(0, 0, 0, 0, 0, 2);
+                double gain1 = detector->GetGainBin(1, 0, 0, 0, 0, 2);
 
-            // calculate quantity proportional to heff
-            double heff0 = gain0 / freq0 / freq0; 
-            double heff1 = gain1 / freq1 / freq1;
-            if(heff0 > heff1) {
-                cerr << "TVpol antenna gain may not be falling fast enough! Effective height may grow and introduce power at low frequencies." << endl;
-                num_err++;
+                // calculate quantity proportional to heff
+                double heff0 = gain0 / freq0 / freq0; 
+                double heff1 = gain1 / freq1 / freq1;
+                if(heff0 > heff1) {
+                    cerr << "TVpol antenna gain may not be falling fast enough! Effective height may grow and introduce power at low frequencies." << endl;
+                    num_err++;
+                }
             }
-        }
-        
-        // Hpols
-        {
-            double gain0 = detector->GetGainBin(0, 0, 0, 1);
-            double gain1 = detector->GetGainBin(1, 0, 0, 1);
+            
+            // Hpols
+            {
+                double gain0 = detector->GetGainBin(0, 0, 0, 1);
+                double gain1 = detector->GetGainBin(1, 0, 0, 1);
 
-            // calculate quantity proportional to heff
-            double heff0 = gain0 / freq0 / freq0; 
-            double heff1 = gain1 / freq1 / freq1;
-            if(heff0 > heff1) {
-                cerr << "Hpol antenna gain may not be falling fast enough! Effective height may grow and introduce power at low frequencies." << endl;
-                num_err++;
+                // calculate quantity proportional to heff
+                double heff0 = gain0 / freq0 / freq0; 
+                double heff1 = gain1 / freq1 / freq1;
+                if(heff0 > heff1) {
+                    cerr << "Hpol antenna gain may not be falling fast enough! Effective height may grow and introduce power at low frequencies." << endl;
+                    num_err++;
+                }
             }
         }
     }
@@ -1208,6 +1238,18 @@ int Settings::CheckCompatibilitiesSettings() {
       num_err++;
     }
 
+    // checking antenna mode 
+    if (ANTENNA_MODE != 6) {
+        const std::string default_vpol = string(getenv("ARA_SIM_DIR"))+"/data/antennas/realizedGain/ARA_bicone6in_output.txt";
+        const std::string default_vtop = string(getenv("ARA_SIM_DIR"))+"/data/antennas/realizedGain/ARA_bicone6in_output.txt";
+        const std::string default_hpol = string(getenv("ARA_SIM_DIR"))+"/data/antennas/realizedGain/ARA_dipoletest1_output.txt";
+        if (VPOL_GAIN_FILE != default_vpol || VTOP_GAIN_FILE != default_vtop || HPOL_GAIN_FILE != default_hpol) {
+            std::cerr << "Warning: Custom GAIN_FILE paths provided, "
+                    << "but ANTENNA_MODE != 6. These files may be ignored." << std::endl;
+            num_err++;
+        }
+    }
+
     return num_err;
 
 }
@@ -1221,3 +1263,22 @@ void Settings::SetGitCommitHash(){
     std::cout<<"The Git Commit Hash: "<<COMMIT_HASH<<std::endl;
 }
 
+std::string Settings::ParseFilePath(const std::string& line) {
+    size_t eq_pos = line.find('=');
+    if (eq_pos == std::string::npos) {
+        return ""; 
+    }
+
+    // Search for the first quote after the '='
+    size_t quote_start = line.find('"', eq_pos);
+    if (quote_start == std::string::npos) {
+        return ""; 
+    }
+
+    size_t quote_end = line.find('"', quote_start + 1);
+    if (quote_end == std::string::npos) {
+        return ""; 
+    }
+
+    return line.substr(quote_start + 1, quote_end - quote_start - 1);
+}
