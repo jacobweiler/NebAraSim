@@ -329,6 +329,10 @@ class Settings
         string VTOP_GAIN_FILE;
         string HPOL_GAIN_FILE;
 
+        // Antenna Depth (Z) Locations
+        std::string ANTENNA_Z_FILE;
+        bool USE_ANTENNA_Z_FILE;
+
         //Impedances of RX and TX antennas.  All use the numbering scheme below:
                              // 0: Simple 50 Ohm impedance model that matches the Zr=50 that's been historically used in AraSim
                              // 1: Bottom VPol impedance model measured by Mohammad at Kansas

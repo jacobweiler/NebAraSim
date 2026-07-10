@@ -51,6 +51,9 @@ HPOL_GAIN_FILE=string(getenv("ARA_SIM_DIR"))+"/data/antennas/realizedGain/ARA_di
 VTOP_GAIN_FILE=string(getenv("ARA_SIM_DIR"))+"/data/antennas/realizedGain/ARA_bicone6in_output.txt"; // Default to original Ara Data
 VPOL_GAIN_FILE=string(getenv("ARA_SIM_DIR"))+"/data/antennas/realizedGain/ARA_bicone6in_output.txt"; // Default to original Ara Data
 
+ANTENNA_Z_FILE = "";
+USE_ANTENNA_Z_FILE = false;
+
 // end of values from icemc
 
  ARASIM_VERSION_MAJOR = ARASIM_MAJOR;
@@ -762,6 +765,12 @@ void Settings::ReadFile(string setupfile) {
                       std::abort();
                   }
               }
+              else if (label == "ANTENNA_Z_FILE") {
+                    ANTENNA_Z_FILE = ParseFilePath(line);
+                    if (!ANTENNA_Z_FILE.empty()) {
+                        USE_ANTENNA_Z_FILE = true;
+                    }
+                }
               else if (label == "IMPEDANCE_RX_VPOL"){
                   IMPEDANCE_RX_VPOL = atoi(line.substr(line.find_first_of("=") + 1).c_str());
               }              

@@ -52,3 +52,5 @@ ANTENNA_MODE=6 // (DEFAULT=0) Antenna to be used
 VPOL_GAIN_FILE="/users/PAS1977/jacobweiler/GENETIS/data/ARA_Bicone_Gain_Files/ara_dipole6in_data.txt"
 //VTOP_GAIN_FILE="/users/PAS1977/jacobweiler/GENETIS/data/ARA_Bicone_Gain_Files/ara_dipole6in_data.txt"
 //HPOL_GAIN_FILE="/users/PAS1977/jacobweiler/GENETIS/data/ARA_Bicone_Gain_Files/ara_dipole6in_data.txt"
+
+ANTENNA_Z_FILE="/fs/ess/PAS1960/Nebulous2/JacobRuns/NebulousAraSim/SETUP/test_z_pos.csv"

@@ -32,6 +32,37 @@ ClassImp(Antenna_string);
 ClassImp(ARA_station);
 
 
+std::vector<double> ReadAntennaZFile(const std::string& filename) {
+    std::vector<double> zPositions;
+    std::ifstream zFile(filename.c_str());
+    std::string line;
+
+    if (zFile.is_open()) {
+        while (getline(zFile, line)) {
+            // skip comment lines starting with // and empty lines
+            if (line.empty() || line[0] == '/') continue;
+            // skip any inline comments
+            size_t comment_pos = line.find("//");
+            if (comment_pos != std::string::npos) {
+                line = line.substr(0, comment_pos);
+            }
+            // trim whitespace
+            size_t first = line.find_first_not_of(" \t");
+            if (first == std::string::npos) continue;
+            line = line.substr(first);
+            zPositions.push_back(atof(line.c_str()));
+        }
+        zFile.close();
+        std::cout << "Read " << zPositions.size()
+                  << " antenna Z positions from " << filename << std::endl;
+    }
+    else {
+        throw std::runtime_error("Could not open antenna Z file: " + filename);
+    }
+
+    return zPositions;
+}
+
 Detector::Detector() {
     //Default constructor
 }
@@ -439,6 +470,22 @@ Detector::Detector(Settings * settings1, IceModel * icesurface, string setupfile
         // set antenna values from parameters
         // set station positions
         if (settings1 -> READGEOM == 0) { // use idealized geometry
+            // Read custom Z positions if provided
+            std::vector<double> customZ;
+            if (settings1->USE_ANTENNA_Z_FILE) {
+                customZ = ReadAntennaZFile(settings1->ANTENNA_Z_FILE);
+                // validate we have enough entries
+                int expected = params.number_of_strings_station * 
+                            params.number_of_antennas_string;
+                if ((int)customZ.size() < expected) {
+                    throw std::runtime_error(
+                        "ANTENNA_Z_FILE has fewer entries than expected! Got " +
+                        std::to_string(customZ.size()) + ", need " +
+                        std::to_string(expected)
+                    );
+                }
+                std::cout << "Using custom antenna Z positions from file." << std::endl;
+            }
 
             for (int i = 0; i < stations.size(); i++) {
 
@@ -462,14 +509,18 @@ Detector::Detector(Settings * settings1, IceModel * icesurface, string setupfile
                     for (int j = 0; j < stations[i].strings.size(); j++) {
                         for (int k = 0; k < stations[i].strings[j].antennas.size(); k++) {
 
-                            if (settings1 -> BH_ANT_SEP_DIST_ON == 0) {
+                            if (settings1->USE_ANTENNA_Z_FILE) {
+                                // flat index: string j, antenna k
+                                int flat_idx = j * params.number_of_antennas_string + k;
+                                stations[i].strings[j].antennas[k].SetZ(customZ[flat_idx]);
+                            }
+                            else if (settings1->BH_ANT_SEP_DIST_ON == 0) {
                                 stations[i].strings[j].antennas[k].SetZ(-z_max + z_btw * k);
                             }
-                            else if (settings1 -> BH_ANT_SEP_DIST_ON == 1) {
+                            else if (settings1->BH_ANT_SEP_DIST_ON == 1) {
                                 z_btw_total = 0.;
-                                for (int l = 0; l < k + 1; l++) 
+                                for (int l = 0; l < k + 1; l++)
                                     z_btw_total += z_btw_array[l];
-                                
                                 stations[i].strings[j].antennas[k].SetZ(-z_max + z_btw_total);
                             }
 
