@@ -2294,6 +2294,38 @@ Detector::Detector(Settings * settings1, IceModel * icesurface, string setupfile
     // add additional depth if it's on
     AddAdditional_Depth(settings1);
 
+    // print string XY positions
+    std::ofstream string_out("string_positions_cartesian.csv");
+    string_out << "station,string,X,Y" << std::endl;
+    for (int i = 0; i < (int)stations.size(); i++) {
+        for (int j = 0; j < (int)stations[i].strings.size(); j++) {
+            string_out << i << ","
+                    << j << ","
+                    << stations[i].strings[j].GetX() << ","
+                    << stations[i].strings[j].GetY()
+                    << std::endl;
+        }
+    }
+    string_out.close();
+
+    // print antenna positions (already have this)
+    std::ofstream ant_out("antenna_positions_cartesian.csv");
+    ant_out << "station,string,antenna,pol,X,Y,Z" << std::endl;
+    for (int i = 0; i < (int)stations.size(); i++) {
+        for (int j = 0; j < (int)stations[i].strings.size(); j++) {
+            for (int k = 0; k < (int)stations[i].strings[j].antennas.size(); k++) {
+                ant_out << i << ","
+                        << j << ","
+                        << k << ","
+                        << stations[i].strings[j].antennas[k].type << ","
+                        << stations[i].strings[j].antennas[k].GetX() << ","
+                        << stations[i].strings[j].antennas[k].GetY() << ","
+                        << stations[i].strings[j].antennas[k].GetZ()
+                        << std::endl;
+            }
+        }
+    }
+    ant_out.close();
     // change coordinate from flat surface to curved Earth surface
     FlattoEarth_ARA_sharesurface(icesurface); // this one will share the lowest surface at each station.
 
