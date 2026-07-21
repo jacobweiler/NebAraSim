@@ -232,7 +232,7 @@ Detector::Detector(Settings * settings1, IceModel * icesurface, string setupfile
         params.core_y = 10000.;
         double R_string = 10.; // all units are in meter
         double R_surface = 60.;
-        double z_max = 1000.; // NOTE: Jacob - Changed this to 1001 for Nebulous
+        double z_max = 200.;
         double z_btw = 10.;
         double z_btw_array[6]; // assume there will be less than 6 bore hole antennas at each string
         // these z_btw array will be used when settings->BH_ANT_SEP_DIST_ON=1 case
@@ -982,7 +982,7 @@ Detector::Detector(Settings * settings1, IceModel * icesurface, string setupfile
         params.core_y = 10000.;
         double R_string = 10.;
         double R_surface = 60.;
-        double z_max = 1000.; // NOTE: Jacob - Changed from 200 for Nebulous
+        double z_max = 200.;
         double z_btw = 10.;
         double z_btw_array[6]; // assume there will be less than 6 bore hole antennas at each string
         // these z_btw array will be used when settings->BH_ANT_SEP_DIST_ON=1 case
@@ -1388,7 +1388,7 @@ Detector::Detector(Settings * settings1, IceModel * icesurface, string setupfile
         params.core_y = 10000.;
         double R_string = 10.; // all units are in meter
         double R_surface = 60.;
-        double z_max = 1000.; // NOTE: Jacob - Changed from 200 for Nebulous
+        double z_max = 200.;
         double z_btw = 20.;
         params.stations_per_side = 4; // total 37 stations
         params.station_spacing = 2000.; // 2km spacing for borehole stations
@@ -1656,7 +1656,7 @@ Detector::Detector(Settings * settings1, IceModel * icesurface, string setupfile
         params.core_y = 10000.;
         double R_string = 10.; // all units are in meter
         double R_surface = 60.;
-        double z_max = 1000.; // NOTE: Jacob - Changed from 200 for Nebulous
+        double z_max = 200.;
         double z_btw = 20.;
         params.stations_per_side = 4; // total 37 stations
         params.station_spacing = 2000.; // 2km spacing for borehole stations
