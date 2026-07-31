@@ -872,4 +872,3 @@ complex<double> Tools::butterworth_bp_filter_response(double f, double flo, doub
 
     return H;
 }
-

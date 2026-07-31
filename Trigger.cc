@@ -278,6 +278,9 @@ void Trigger::SetMeanRmsDiode(Settings *settings1, Detector *detector, Report *r
         cout << "num chs: " << num_chs << endl;
 
         // Prepare to save data for all `num_chs` channels
+        meandiode_ch.resize(num_chs);      // <-- added, matches mode 2
+        rmsdiode_ch.resize(num_chs);       // <-- added, matches mode 2
+        rmsvoltage_ch.resize(num_chs);     // <-- added, matches mode 2
         v_noise_timedomain_ch.clear();
         v_noise_timedomain_ch.resize(num_chs);
         v_noise_timedomain_diode_ch.clear();
@@ -1021,4 +1024,3 @@ int Trigger::CheckChannelsPass( vector <double> &V_total_diode ) {
     
 }
   
-

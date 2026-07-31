@@ -5778,4 +5778,3 @@ double Report::interpolate(double *xdata,double *ydata, double xi, int numData)
 //Adding function for padding waveforms to take FFT
 
 
-

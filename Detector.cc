@@ -32,35 +32,54 @@ ClassImp(Antenna_string);
 ClassImp(ARA_station);
 
 
-std::vector<double> ReadAntennaZFile(const std::string& filename) {
-    std::vector<double> zPositions;
-    std::ifstream zFile(filename.c_str());
+struct AntennaCoord {
+    double x, y, z;
+};
+
+std::vector<AntennaCoord> ReadAntennaCoordinateFile(const std::string& filename) {
+    std::vector<AntennaCoord> coords;
+    std::ifstream file(filename.c_str());
     std::string line;
 
-    if (zFile.is_open()) {
-        while (getline(zFile, line)) {
-            // skip comment lines starting with // and empty lines
-            if (line.empty() || line[0] == '/') continue;
-            // skip any inline comments
-            size_t comment_pos = line.find("//");
-            if (comment_pos != std::string::npos) {
-                line = line.substr(0, comment_pos);
-            }
-            // trim whitespace
-            size_t first = line.find_first_not_of(" \t");
-            if (first == std::string::npos) continue;
-            line = line.substr(first);
-            zPositions.push_back(atof(line.c_str()));
-        }
-        zFile.close();
-        std::cout << "Read " << zPositions.size()
-                  << " antenna Z positions from " << filename << std::endl;
-    }
-    else {
-        throw std::runtime_error("Could not open antenna Z file: " + filename);
+    if (!file.is_open()) {
+        throw std::runtime_error("Could not open antenna coordinate file: " + filename);
     }
 
-    return zPositions;
+    while (getline(file, line)) {
+        // skip comment lines and empty lines
+        if (line.empty() || line[0] == '/') continue;
+
+        // strip inline comments
+        size_t comment_pos = line.find("//");
+        if (comment_pos != std::string::npos) {
+            line = line.substr(0, comment_pos);
+        }
+
+        // trim whitespace
+        size_t first = line.find_first_not_of(" \t");
+        if (first == std::string::npos) continue;
+        line = line.substr(first);
+
+        // parse x,y,z
+        std::stringstream ss(line);
+        std::string token;
+        AntennaCoord coord;
+        try {
+            getline(ss, token, ','); coord.x = atof(token.c_str());
+            getline(ss, token, ','); coord.y = atof(token.c_str());
+            getline(ss, token, ','); coord.z = atof(token.c_str());
+            coords.push_back(coord);
+        }
+        catch (...) {
+            std::cerr << "Warning: could not parse coordinate line: "
+                      << line << std::endl;
+        }
+    }
+    file.close();
+
+    std::cout << "Read " << coords.size()
+              << " antenna coordinates from " << filename << std::endl;
+    return coords;
 }
 
 Detector::Detector() {
@@ -467,24 +486,13 @@ Detector::Detector(Settings * settings1, IceModel * icesurface, string setupfile
             cout << "\n\tError, the number of stations initialized doesn't match the number requested!" << endl;
         }
   
-        // set antenna values from parameters
-        // set station positions
         if (settings1 -> READGEOM == 0) { // use idealized geometry
-            // Read custom Z positions if provided
-            std::vector<double> customZ;
-            if (settings1->USE_ANTENNA_Z_FILE) {
-                customZ = ReadAntennaZFile(settings1->ANTENNA_Z_FILE);
-                // validate we have enough entries
-                int expected = params.number_of_strings_station * 
-                            params.number_of_antennas_string;
-                if ((int)customZ.size() < expected) {
-                    throw std::runtime_error(
-                        "ANTENNA_Z_FILE has fewer entries than expected! Got " +
-                        std::to_string(customZ.size()) + ", need " +
-                        std::to_string(expected)
-                    );
-                }
-                std::cout << "Using custom antenna Z positions from file." << std::endl;
+
+            // read coordinate file once before station loop
+            std::vector<AntennaCoord> coords;
+            if (settings1->USE_ANTENNA_COORD_FILE) {
+                coords = ReadAntennaCoordinateFile(settings1->ANTENNA_COORD_FILE);
+                std::cout << "Using custom antenna depths from file; x,y from idealized geometry." << std::endl;
             }
 
             for (int i = 0; i < stations.size(); i++) {
@@ -505,14 +513,18 @@ Detector::Detector(Settings * settings1, IceModel * icesurface, string setupfile
                 // set antenna postions in borehole
                 // and set type (h or v pol antenna) and set orientation (facing x or y)
                 if (params.bore_hole_antenna_layout == 0 || params.bore_hole_antenna_layout == 1) {
-
+                    
                     for (int j = 0; j < stations[i].strings.size(); j++) {
                         for (int k = 0; k < stations[i].strings[j].antennas.size(); k++) {
 
-                            if (settings1->USE_ANTENNA_Z_FILE) {
-                                // flat index: string j, antenna k
+                            if (settings1->USE_ANTENNA_COORD_FILE) {
+                                // Use only the depth (z) from the coord file.
+                                // x,y come from the idealized string positions set above.
+                                // Flat index: string j * antennas_per_string + antenna k.
                                 int flat_idx = j * params.number_of_antennas_string + k;
-                                stations[i].strings[j].antennas[k].SetZ(customZ[flat_idx]);
+                                stations[i].strings[j].antennas[k].SetX(stations[i].strings[j].GetX());
+                                stations[i].strings[j].antennas[k].SetY(stations[i].strings[j].GetY());
+                                stations[i].strings[j].antennas[k].SetZ(coords[flat_idx].z);
                             }
                             else if (settings1->BH_ANT_SEP_DIST_ON == 0) {
                                 stations[i].strings[j].antennas[k].SetZ(-z_max + z_btw * k);
@@ -562,7 +574,15 @@ Detector::Detector(Settings * settings1, IceModel * icesurface, string setupfile
                     for (int j = 0; j < stations[i].strings.size(); j++) {
                         for (int k = 0; k < stations[i].strings[j].antennas.size(); k++) {
 
-                            if (settings1 -> BH_ANT_SEP_DIST_ON == 0) {
+                            if (settings1->USE_ANTENNA_COORD_FILE) {
+                                // Use only the depth (z) from the coord file.
+                                // x,y come from the idealized string positions set above.
+                                int flat_idx = j * params.number_of_antennas_string + k;
+                                stations[i].strings[j].antennas[k].SetX(stations[i].strings[j].GetX());
+                                stations[i].strings[j].antennas[k].SetY(stations[i].strings[j].GetY());
+                                stations[i].strings[j].antennas[k].SetZ(coords[flat_idx].z);
+                            }
+                            else if (settings1 -> BH_ANT_SEP_DIST_ON == 0) {
                                 stations[i].strings[j].antennas[k].SetZ(-z_max + z_btw * k);
                             }
                             else if (settings1 -> BH_ANT_SEP_DIST_ON == 1) {
@@ -611,7 +631,15 @@ Detector::Detector(Settings * settings1, IceModel * icesurface, string setupfile
                     for (int j = 0; j < stations[i].strings.size(); j++) {
                         for (int k = 0; k < stations[i].strings[j].antennas.size(); k++) {
 
-                            if (settings1 -> BH_ANT_SEP_DIST_ON == 0) {
+                            if (settings1->USE_ANTENNA_COORD_FILE) {
+                                // Use only the depth (z) from the coord file.
+                                // x,y come from the idealized string positions set above.
+                                int flat_idx = j * params.number_of_antennas_string + k;
+                                stations[i].strings[j].antennas[k].SetX(stations[i].strings[j].GetX());
+                                stations[i].strings[j].antennas[k].SetY(stations[i].strings[j].GetY());
+                                stations[i].strings[j].antennas[k].SetZ(coords[flat_idx].z);
+                            }
+                            else if (settings1 -> BH_ANT_SEP_DIST_ON == 0) {
                                 stations[i].strings[j].antennas[k].SetZ(-z_max + z_btw * k);
                             }
                             else if (settings1 -> BH_ANT_SEP_DIST_ON == 1) {
@@ -664,10 +692,17 @@ Detector::Detector(Settings * settings1, IceModel * icesurface, string setupfile
                     for (int j = 0; j < stations[i].strings.size(); j++) {
                         for (int k = 0; k < stations[i].strings[j].antennas.size(); k++) {
 
-                            if (settings1 -> BH_ANT_SEP_DIST_ON == 0) {
+                            if (settings1->USE_ANTENNA_COORD_FILE) {
+                                // Use only the depth (z) from the coord file.
+                                // x,y come from the idealized string positions set above.
+                                int flat_idx = j * params.number_of_antennas_string + k;
+                                stations[i].strings[j].antennas[k].SetX(stations[i].strings[j].GetX());
+                                stations[i].strings[j].antennas[k].SetY(stations[i].strings[j].GetY());
+                                stations[i].strings[j].antennas[k].SetZ(coords[flat_idx].z);
+                            }
+                            else if (settings1 -> BH_ANT_SEP_DIST_ON == 0) {
                                 stations[i].strings[j].antennas[k].SetZ(-z_max + z_btw * k);
                             }
-
                             else if (settings1 -> BH_ANT_SEP_DIST_ON == 1) {
                                 z_btw_total = 0.;
                                 for (int l = 0; l < k + 1; l++) { 
@@ -1476,10 +1511,6 @@ Detector::Detector(Settings * settings1, IceModel * icesurface, string setupfile
         }
         // finished setting all stations' position
 
-        if (station_count != (int) params.number_of_stations) { 
-            cout << "\n\tError, station number not match !" << endl;
-        }
-
         // set antenna values from parameters
         // set station positions
         #ifdef ARA_UTIL_EXISTS
@@ -1724,10 +1755,6 @@ Detector::Detector(Settings * settings1, IceModel * icesurface, string setupfile
         stations[0].SetX(params.core_x);
         stations[0].SetY(params.core_y);
 
-        if (station_count != (int) params.number_of_stations) { 
-            cout << "\n\tError, station number not match !" << endl;
-        }
-
 
         #ifdef ARA_UTIL_EXISTS
         ImportStationInfo(settings1, 0, settings1 -> DETECTOR_STATION);
@@ -1764,40 +1791,9 @@ Detector::Detector(Settings * settings1, IceModel * icesurface, string setupfile
 
         params.number_of_antennas = 0;
 
-        cout << "DETECTOR=4 imported station geom info" << endl;
-
         for (int j = 0; j < stations[0].strings.size(); j++) {
             for (int k = 0; k < stations[0].strings[j].antennas.size(); k++) {
-
-                cout << "DetectorStation2:string:antenna:X:Y:Z:chno :: " 
-                     << j << " : " 
-                     << k << " : " 
-                     << stations[0].strings[j].antennas[k].GetX() << " : " 
-                     << stations[0].strings[j].antennas[k].GetY() << " : " 
-                     << stations[0].strings[j].antennas[k].GetZ() << " : \t" 
-                     << GetChannelfromStringAntenna(0, j, k, settings1) 
-                     << endl;
-
                 params.number_of_antennas++;
-            }
-        }
-
-        cout << "after FlattoEarth, station0 location" << endl;
-        for (int j = 0; j < stations[0].strings.size(); j++) {
-            for (int k = 0; k < stations[0].strings[j].antennas.size(); k++) {
-
-                cout << "Detector:station:string:antenna:X:Y:Z:R:Theta:Phi:: " 
-                     << "0" << " : " 
-                     << j << " : " 
-                     << k << " : " 
-                     << stations[0].strings[j].antennas[k].GetX() << " : " 
-                     << stations[0].strings[j].antennas[k].GetY() << " : " 
-                     << stations[0].strings[j].antennas[k].GetZ() << " : " 
-                     << stations[0].strings[j].antennas[k].R() << " : " 
-                     << stations[0].strings[j].antennas[k].Theta() << " : " 
-                     << stations[0].strings[j].antennas[k].Phi() << " : " 
-                     << icesurface -> Surface(stations[0].strings[j].antennas[k].Lon(), stations[0].strings[j].antennas[k].Lat()) << " : " 
-                     << endl;
             }
         }
 
@@ -1890,27 +1886,27 @@ Detector::Detector(Settings * settings1, IceModel * icesurface, string setupfile
         }
 
         // read total elec. chain response file!!
-        cout << "start read elect chain" << endl;
+        //cout << "start read elect chain" << endl;
         if (settings1 -> CUSTOM_ELECTRONICS == 0) {
             //read the standard ARA electronics
             if(settings1->DETECTOR_STATION > 0){
                 char the_gain_filename[500];
                 if(settings1->DETECTOR_STATION_LIVETIME_CONFIG == -1 || settings1->ELECTRONICS_ANTENNA_CONSISTENCY==1) {
                     sprintf(the_gain_filename, "%s/data/gain/ARA_Electronics_TotalGain_TwoFilters.csv", getenv("ARA_SIM_DIR"));
-                    cout<<" Reading standard ARA electronics response from file:"<<endl;
-                    cout << the_gain_filename <<endl;
+                    //cout<<" Reading standard ARA electronics response from file:"<<endl;
+                    //cout << the_gain_filename <<endl;
                 }
                 else {
-                    cout <<" Reading in situ ARA electronics response for this station and configuration from file:"<<endl;	
+                    //cout <<" Reading in situ ARA electronics response for this station and configuration from file:"<<endl;	
                     sprintf(the_gain_filename, "%s/data/gain/In_situ_Electronics_A%d_C%d.csv", getenv("ARA_SIM_DIR"), 	
                                                settings1->DETECTOR_STATION,  settings1->DETECTOR_STATION_LIVETIME_CONFIG);
-                    cout << the_gain_filename << endl;
+                    //cout << the_gain_filename << endl;
                 }  
                 
                 ReadElectChain(std::string(the_gain_filename), settings1);
                 if(settings1->ELECTRONICS_ANTENNA_CONSISTENCY==1) {
                     if(settings1->NOISE==1) {
-                        cout << " Recalculating in situ electronic response amplitude to ensure consistency with antenna model used here." << endl;
+                        //cout << " Recalculating in situ electronic response amplitude to ensure consistency with antenna model used here." << endl;
                         ReadAmplifierNoiseFigure(settings1); // load amplifier noise figure
                         CalculateElectChain(settings1); // calculate consistent electronics chain gain amplitude
                     }
@@ -1921,16 +1917,16 @@ Detector::Detector(Settings * settings1, IceModel * icesurface, string setupfile
                 }
             }
             else{ // testbed only
-              cout <<"    In situ gain model does not exist for this station"<<endl;
+              //cout <<"    In situ gain model does not exist for this station"<<endl;
               ReadElectChain(string(getenv("ARA_SIM_DIR"))+"/data/gain/ARA_Electronics_TotalGain_TwoFilters.csv", settings1);
             }
         }
         else if (settings1->CUSTOM_ELECTRONICS==1){
             //read a custom user defined electronics gain
-            cout<<"     Reading custom electronics response"<<endl;
+            //cout<<"     Reading custom electronics response"<<endl;
             ReadElectChain(string(getenv("ARA_SIM_DIR"))+"/data/gain/custom_electronics.csv", settings1);
         }
-        cout << "done read elect chain" << endl;
+        //cout << "done read elect chain" << endl;
 
         // if calpulser case
         if (settings1 -> CALPULSER_ON > 0) { 
@@ -1939,11 +1935,11 @@ Detector::Detector(Settings * settings1, IceModel * icesurface, string setupfile
         }
 
         if(settings1->DETECTOR_STATION > 0){
-            cout <<" Reading trigger formation values for this station and configuration from file:"<<endl;
+            //cout <<" Reading trigger formation values for this station and configuration from file:"<<endl;
             char the_trig_filename[500];
             sprintf(the_trig_filename, "%s/data/trigger/delays_masking_A%d_C%d.csv", getenv("ARA_SIM_DIR"),
                                        settings1->DETECTOR_STATION,  settings1->DETECTOR_STATION_LIVETIME_CONFIG);
-            cout << the_trig_filename <<endl;
+            //cout << the_trig_filename <<endl;
             ReadTrig_Delays_Masking(std::string(the_trig_filename), settings1);
         }
         else{
@@ -2387,10 +2383,16 @@ inline void Detector::ReadAllAntennaGains(Settings *settings1){
         VgainTopFile = string(getenv("ARA_SIM_DIR"))+"/data/antennas/realizedGain/ARA_TVpol_RealizedGainAndPhase_Copol_Kansas2024.txt";
         HgainFile = string(getenv("ARA_SIM_DIR"))+"/data/antennas/realizedGain/ARA_Hpol_RealizedGainAndPhase_Copol_Kansas2024.txt";         
     }
-    else if (settings1->ANTENNA_MODE == 6) { //Adding antenna mode for custom gains (takes full path).
-        VgainFile = string( settings1->VPOL_GAIN_FILE );
-        VgainTopFile = string( settings1->VTOP_GAIN_FILE );
-        HgainFile = string( settings1->HPOL_GAIN_FILE );        
+    else if (settings1->ANTENNA_MODE == 6) {
+        VgainFile = settings1->VPOL_GAIN_FILE.empty()
+            ? string(getenv("ARA_SIM_DIR"))+"/data/antennas/realizedGain/ARA_BVpol_RealizedGainAndPhase_Copol_Kansas2024.txt"
+            : string(settings1->VPOL_GAIN_FILE);
+        VgainTopFile = settings1->VTOP_GAIN_FILE.empty()
+            ? string(getenv("ARA_SIM_DIR"))+"/data/antennas/realizedGain/ARA_TVpol_RealizedGainAndPhase_Copol_Kansas2024.txt"
+            : string(settings1->VTOP_GAIN_FILE);
+        HgainFile = settings1->HPOL_GAIN_FILE.empty()
+            ? string(getenv("ARA_SIM_DIR"))+"/data/antennas/realizedGain/ARA_Hpol_RealizedGainAndPhase_Copol_Kansas2024.txt"
+            : string(settings1->HPOL_GAIN_FILE);
     }
     
     // Check for ALL_ANT_V_ON, then set all antennas to VPol if true
@@ -7135,6 +7137,15 @@ void Detector::ImportStationInfo(Settings *settings1, int StationIndex, int Stat
         params.TestBed_BH_Mean_delay = 0.;
     }    
 
+    // Read coordinate file once before channel loop if requested.
+    // When USE_ANTENNA_COORD_FILE is set, only the z (depth) coordinate is
+    // taken from the file -- x,y positions still come from AraGeomTool.
+    std::vector<AntennaCoord> coords;
+    if (settings1->USE_ANTENNA_COORD_FILE) {
+        coords = ReadAntennaCoordinateFile(settings1->ANTENNA_COORD_FILE);
+        std::cout << "Using custom antenna depths from file (ImportStationInfo); x,y from AraGeomTool." << std::endl;
+    }
+
     std::cout<<"InstalledStations[StationID].nChannels is "<<InstalledStations[StationID].nChannels<<std::endl;
     for ( int chan = 0; chan < InstalledStations[StationID].nChannels; chan++){
         
@@ -7154,15 +7165,25 @@ void Detector::ImportStationInfo(Settings *settings1, int StationIndex, int Stat
 
         if (araGeom->getStationInfo(StationID_AraRoot, settings1->DETECTOR_YEAR)->fAntInfo[antId].polType != AraAntPol::kSurface){
 
+            // Always use AraGeomTool for x,y positions
             stations[StationIndex].strings[stringNum].antennas[antennaNum].SetX(stations[StationIndex].GetX()+araGeom->getStationInfo(StationID_AraRoot, settings1->DETECTOR_YEAR)->fAntInfo[antId].antLocation[0]);
             stations[StationIndex].strings[stringNum].antennas[antennaNum].SetY(stations[StationIndex].GetY()+araGeom->getStationInfo(StationID_AraRoot, settings1->DETECTOR_YEAR)->fAntInfo[antId].antLocation[1]);
-            stations[StationIndex].strings[stringNum].antennas[antennaNum].SetZ(araGeom->getStationInfo(StationID_AraRoot, settings1->DETECTOR_YEAR)->fAntInfo[antId].antLocation[2]);
+            stations[StationIndex].strings[stringNum].SetX(stations[StationIndex].GetX()+araGeom->getStationInfo(StationID_AraRoot, settings1->DETECTOR_YEAR)->fAntInfo[antId].antLocation[0]);
+            stations[StationIndex].strings[stringNum].SetY(stations[StationIndex].GetY()+araGeom->getStationInfo(StationID_AraRoot, settings1->DETECTOR_YEAR)->fAntInfo[antId].antLocation[1]);
+
+            if (settings1->USE_ANTENNA_COORD_FILE) {
+                // Override only the depth (z) from the coordinate file.
+                // Flat index: string * antennas_per_string + antenna,
+                // matching the same convention used elsewhere in AraSim.
+                int flat_idx = stringNum * params.number_of_antennas_string + antennaNum;
+                stations[StationIndex].strings[stringNum].antennas[antennaNum].SetZ(coords[flat_idx].z);
+            }
+            else {
+                stations[StationIndex].strings[stringNum].antennas[antennaNum].SetZ(araGeom->getStationInfo(StationID_AraRoot, settings1->DETECTOR_YEAR)->fAntInfo[antId].antLocation[2]);
+            }
 
             //set polarization to match the deployed information
             stations[StationIndex].strings[stringNum].antennas[antennaNum].type = int(araGeom->getStationInfo(StationID_AraRoot, settings1->DETECTOR_YEAR)->fAntInfo[antId].polType);  
-
-            stations[StationIndex].strings[stringNum].SetX(stations[StationIndex].GetX()+araGeom->getStationInfo(StationID_AraRoot, settings1->DETECTOR_YEAR)->fAntInfo[antId].antLocation[0]);
-            stations[StationIndex].strings[stringNum].SetY(stations[StationIndex].GetY()+araGeom->getStationInfo(StationID_AraRoot, settings1->DETECTOR_YEAR)->fAntInfo[antId].antLocation[1]);
               
             if ( params.antenna_orientation == 0 ) {     // all borehole antennas facing same x
                 stations[StationIndex].strings[stringNum].antennas[antennaNum].orient = 0;
