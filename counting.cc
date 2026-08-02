@@ -5,7 +5,8 @@
 #include "TMath.h"
 #include "Constants.h"
 #include "Event.h"
-
+#include <cmath>
+#include <algorithm>
 
 Counting::Counting() {
     Tools::Zero(npass,2);
@@ -66,8 +67,9 @@ void Counting::findErrorOnSumWeights(double *eventsfound_binned,double &error_pl
         // in each bin, the error on the weight is the weight for that bin times the error on the number of events in that bin
         double thislogweight=((double)i+0.5)/(double)NBINS*(MAX_LOGWEIGHT-MIN_LOGWEIGHT)+MIN_LOGWEIGHT; // find log weight for this bin
         if (eventsfound_binned[i]<=20) {  // if the number of events in this bin <20, use poisson errors
-            error_plus+=pow(poissonerror_plus[(int)eventsfound_binned[i]]*pow(10.,thislogweight),2);
-            error_minus+=pow(poissonerror_minus[(int)eventsfound_binned[i]]*pow(10.,thislogweight),2);
+            int poisson_idx = std::max(0, std::min((int)eventsfound_binned[i], 20));
+            error_plus+=pow(poissonerror_plus[poisson_idx]*pow(10.,thislogweight),2);
+            error_minus+=pow(poissonerror_minus[poisson_idx]*pow(10.,thislogweight),2);
         }
         else {// otherwise, use sqrt(n) errors
             error_plus+=eventsfound_binned[i]*pow(pow(10.,thislogweight),2);
@@ -81,8 +83,16 @@ void Counting::findErrorOnSumWeights(double *eventsfound_binned,double &error_pl
 
 void Counting::incrementEventsFound(double weight, Event *event) {
 
+    // guard against non-positive weights which cause log10 to return
+    // NaN/-inf and crash findWeightBin
+    if (weight <= 0.0) {
+        cerr << "Warning: non-positive weight " << weight
+             << " in incrementEventsFound, skipping." << endl;
+        return;
+    }
+
     int index_weights=findWeightBin(log10(weight));
-    cout <<weight << " : " << index_weights << endl;
+    cout << weight << " : " << index_weights << endl;
 
     // count number of events that pass, binned in weight
     if (index_weights<Counting::NBINS){
@@ -107,17 +117,21 @@ void Counting::incrementEventsFound(double weight, Event *event) {
 
 
 int Counting::findWeightBin(double logweight) {
-    // first, find which weight bin it is in
+    // guard against NaN from log10 of negative weight
+    if (std::isnan(logweight) || std::isinf(logweight)) {
+        return 0;  // put in underflow bin
+    }
     int index_weights;
-    if (logweight<MIN_LOGWEIGHT){  // underflows, set to 0th bin
-        index_weights=0;
+    if (logweight < MIN_LOGWEIGHT) {
+        index_weights = 0;
     }
-    else if (logweight>MAX_LOGWEIGHT){ // overflows, set to last bin
-        index_weights=NBINS-1;
+    else if (logweight > MAX_LOGWEIGHT) {
+        index_weights = NBINS - 1;
     }
-    else{
-        // which index weight corresponds to.
-        index_weights=(int)(((logweight-MIN_LOGWEIGHT)/(MAX_LOGWEIGHT-MIN_LOGWEIGHT))*(double)NBINS);
+    else {
+        index_weights = (int)(((logweight - MIN_LOGWEIGHT) /
+                               (MAX_LOGWEIGHT - MIN_LOGWEIGHT)) *
+                              (double)NBINS);
     }
     return index_weights;
 }
