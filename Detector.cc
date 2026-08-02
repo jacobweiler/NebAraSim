@@ -32,35 +32,54 @@ ClassImp(Antenna_string);
 ClassImp(ARA_station);
 
 
-std::vector<double> ReadAntennaZFile(const std::string& filename) {
-    std::vector<double> zPositions;
-    std::ifstream zFile(filename.c_str());
+struct AntennaCoord {
+    double x, y, z;
+};
+
+std::vector<AntennaCoord> ReadAntennaCoordinateFile(const std::string& filename) {
+    std::vector<AntennaCoord> coords;
+    std::ifstream file(filename.c_str());
     std::string line;
 
-    if (zFile.is_open()) {
-        while (getline(zFile, line)) {
-            // skip comment lines starting with // and empty lines
-            if (line.empty() || line[0] == '/') continue;
-            // skip any inline comments
-            size_t comment_pos = line.find("//");
-            if (comment_pos != std::string::npos) {
-                line = line.substr(0, comment_pos);
-            }
-            // trim whitespace
-            size_t first = line.find_first_not_of(" \t");
-            if (first == std::string::npos) continue;
-            line = line.substr(first);
-            zPositions.push_back(atof(line.c_str()));
-        }
-        zFile.close();
-        std::cout << "Read " << zPositions.size()
-                  << " antenna Z positions from " << filename << std::endl;
-    }
-    else {
-        throw std::runtime_error("Could not open antenna Z file: " + filename);
+    if (!file.is_open()) {
+        throw std::runtime_error("Could not open antenna coordinate file: " + filename);
     }
 
-    return zPositions;
+    while (getline(file, line)) {
+        // skip comment lines and empty lines
+        if (line.empty() || line[0] == '/') continue;
+
+        // strip inline comments
+        size_t comment_pos = line.find("//");
+        if (comment_pos != std::string::npos) {
+            line = line.substr(0, comment_pos);
+        }
+
+        // trim whitespace
+        size_t first = line.find_first_not_of(" \t");
+        if (first == std::string::npos) continue;
+        line = line.substr(first);
+
+        // parse x,y,z
+        std::stringstream ss(line);
+        std::string token;
+        AntennaCoord coord;
+        try {
+            getline(ss, token, ','); coord.x = atof(token.c_str());
+            getline(ss, token, ','); coord.y = atof(token.c_str());
+            getline(ss, token, ','); coord.z = atof(token.c_str());
+            coords.push_back(coord);
+        }
+        catch (...) {
+            std::cerr << "Warning: could not parse coordinate line: "
+                      << line << std::endl;
+        }
+    }
+    file.close();
+
+    std::cout << "Read " << coords.size()
+              << " antenna coordinates from " << filename << std::endl;
+    return coords;
 }
 
 Detector::Detector() {
@@ -470,21 +489,11 @@ Detector::Detector(Settings * settings1, IceModel * icesurface, string setupfile
         // set antenna values from parameters
         // set station positions
         if (settings1 -> READGEOM == 0) { // use idealized geometry
-            // Read custom Z positions if provided
-            std::vector<double> customZ;
-            if (settings1->USE_ANTENNA_Z_FILE) {
-                customZ = ReadAntennaZFile(settings1->ANTENNA_Z_FILE);
-                // validate we have enough entries
-                int expected = params.number_of_strings_station * 
-                            params.number_of_antennas_string;
-                if ((int)customZ.size() < expected) {
-                    throw std::runtime_error(
-                        "ANTENNA_Z_FILE has fewer entries than expected! Got " +
-                        std::to_string(customZ.size()) + ", need " +
-                        std::to_string(expected)
-                    );
-                }
-                std::cout << "Using custom antenna Z positions from file." << std::endl;
+             // read coordinate file once before station loop
+            std::vector<AntennaCoord> coords;
+            if (settings1->USE_ANTENNA_COORD_FILE) {
+                coords = ReadAntennaCoordinateFile(settings1->ANTENNA_COORD_FILE);
+                std::cout << "Using custom antenna depths from file; x,y from idealized geometry." << std::endl;
             }
 
             for (int i = 0; i < stations.size(); i++) {
@@ -509,10 +518,10 @@ Detector::Detector(Settings * settings1, IceModel * icesurface, string setupfile
                     for (int j = 0; j < stations[i].strings.size(); j++) {
                         for (int k = 0; k < stations[i].strings[j].antennas.size(); k++) {
 
-                            if (settings1->USE_ANTENNA_Z_FILE) {
+                            if (settings1->USE_ANTENNA_COORD_FILE) {
                                 // flat index: string j, antenna k
                                 int flat_idx = j * params.number_of_antennas_string + k;
-                                stations[i].strings[j].antennas[k].SetZ(customZ[flat_idx]);
+                                stations[i].strings[j].antennas[k].SetZ(coords[flat_idx].z);
                             }
                             else if (settings1->BH_ANT_SEP_DIST_ON == 0) {
                                 stations[i].strings[j].antennas[k].SetZ(-z_max + z_btw * k);
