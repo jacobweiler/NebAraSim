@@ -521,7 +521,18 @@ void Tools::NormalTimeOrdering_InvT(const int n,double *volts) {
 */
 
 void Tools::SincInterpolation(int n1, double *x1, double *y1, int n2, double *x2, double *y2){
-
+    /*
+    * The Whittaker-Shannon interpolator is useful in the case of band-limited data.
+    * Otherwise known as "sinc" interpolation, it protects the fidelity of the frequency spectrum of the signal.
+    * Unlike, say, cubic-spline interpolation--which is faster, but can leave artifacts.
+    * See https://en.wikipedia.org/wiki/Whittaker–Shannon_interpolation_formula for information,
+    * and https://www.boost.org/doc/libs/1_71_0/libs/math/doc/html/math_toolkit/whittaker_shannon.html
+    * for implementation details from the boost documentation.
+    * This method is slower than linear or spline interpolation--so its use is probably 
+    * probably not ideal/necessary in cases where preserving spectral shape is not important.
+    */
+    
+    // the whittaker-shannon method likes the data to be in a vector
     size_t num_input_samps = n1;
     std::vector<double> input_y(num_input_samps);
     for(size_t samp=0; samp<num_input_samps; samp++){
@@ -532,14 +543,20 @@ void Tools::SincInterpolation(int n1, double *x1, double *y1, int n2, double *x2
     double first_input_sample = x1[0];
     double last_input_sample = x1[n1-1];
 
-    auto interpolator = boost::math::interpolators::whittaker_shannon<std::vector<double>>(
-        std::move(input_y), t0, dT);
+    auto interpolator = boost::math::interpolators::whittaker_shannon<std::vector<double>>(std::move(input_y), t0, dT);
 
     for(int samp=0; samp<n2; samp++){
+        // check if the sample comes before the first sample of the input array (x1[0])
+        // or after the last sample of the input array (x1[n1-1])
+        // if so, then we are asking for the function to *extrapolate*, not *interpolate*
+        // just use the first/last sample, which replicates the behavior in SimpleLinearInterpolation_OutZero
+
         if(x2[samp] < first_input_sample){
+            // before first sample, set to 0 
             y2[samp] = 0.;
         }
         else if(x2[samp] > last_input_sample){
+            // after last sample, set to 0 
             y2[samp] = 0.;
         }
         else{
