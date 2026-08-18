@@ -2524,15 +2524,15 @@ int Report::triggerCheckLoop(
         
         
         // debug output:
-        if(TDR_all_sorted_temp[0]>TDR_all_sorted_temp[1]||TDR_all_sorted_temp[1]>TDR_all_sorted_temp[2]){
+        //if(TDR_all_sorted_temp[0]>TDR_all_sorted_temp[1]||TDR_all_sorted_temp[1]>TDR_all_sorted_temp[2]){
            
-          cout<<"\n";
-          for(int p=0;p<80;p++) cout<<"*";
-          cout<<"\n  ordering problem: "<<TDR_all_sorted_temp[0]<<" "<<TDR_all_sorted_temp[1]<<" "<<TDR_all_sorted_temp[2]<<"\n";
-          for(int p=0;p<80;p++) cout<<"*";
-          cout<<"\n";
+          //cout<<"\n";
+          //for(int p=0;p<80;p++) cout<<"*";
+          //cout<<"\n  ordering problem: "<<TDR_all_sorted_temp[0]<<" "<<TDR_all_sorted_temp[1]<<" "<<TDR_all_sorted_temp[2]<<"\n";
+          //for(int p=0;p<80;p++) cout<<"*";
+          //cout<<"\n";
             
-        }
+        //}
 	
       }// if trig_mode==0
       if(settings1->TRIG_MODE==1){ // for N out of either polarization
@@ -2618,23 +2618,23 @@ int Report::triggerCheckLoop(
       cout<<"\n";
         
       // debug output:
-      if(stations[i].TDR_all_sorted[0]>stations[i].TDR_all_sorted[1]||stations[i].TDR_all_sorted[1]>stations[i].TDR_all_sorted[2]){
+      //if(stations[i].TDR_all_sorted[0]>stations[i].TDR_all_sorted[1]||stations[i].TDR_all_sorted[1]>stations[i].TDR_all_sorted[2]){
 	   
-        cout<<"\n";
-        for(int p=0;p<80;p++) 
-          cout<<"*";
-        cout<<"\n  ordering problem: "
-            <<stations[i].TDR_all_sorted[0]
-            <<" "
-            <<stations[i].TDR_all_sorted[1]
-            <<" "
-            <<stations[i].TDR_all_sorted[2]
-            <<"\n";
-        for(int p=0;p<80;p++) 
-          cout<<"*";
-        cout<<"\n";
+        //cout<<"\n";
+        //for(int p=0;p<80;p++) 
+        //  cout<<"*";
+       // cout<<"\n  ordering problem: "
+       //     <<stations[i].TDR_all_sorted[0]
+       //     <<" "
+       //     <<stations[i].TDR_all_sorted[1]
+       //     <<" "
+       //     <<stations[i].TDR_all_sorted[2]
+       //     <<"\n";
+       // for(int p=0;p<80;p++) 
+       //   cout<<"*";
+       // cout<<"\n";
 		
-      }// ordering problem
+      //}// ordering problem
       
    
     }// trig mode 0
@@ -5776,6 +5776,5 @@ double Report::interpolate(double *xdata,double *ydata, double xi, int numData)
 }
 
 //Adding function for padding waveforms to take FFT
-
 
 

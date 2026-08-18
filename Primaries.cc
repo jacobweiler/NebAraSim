@@ -236,7 +236,7 @@ Primaries::Primaries() {//constructor
 Primaries::~Primaries() { //default deconstructor
   
   m_hsigma->Draw("same");
-  m_csigma->Print("sigmaCrossSection.pdf");
+  //m_csigma->Print("sigmaCrossSection.pdf");
   delete m_hsigma;
   delete m_myY;
   for(int i=0; i<=1;i++){ // nu, nubar
@@ -247,7 +247,7 @@ Primaries::~Primaries() { //default deconstructor
       delete m_fsigma_lower[i][j];
     }
   }
-  delete m_csigma;
+  //delete m_csigma;
 
 }//deconstructor
 

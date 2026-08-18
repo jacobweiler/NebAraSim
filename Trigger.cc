@@ -1015,4 +1015,3 @@ int Trigger::CheckChannelsPass( vector <double> &V_total_diode ) {
     
 }
   
-

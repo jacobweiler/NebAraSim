@@ -521,7 +521,6 @@ void Tools::NormalTimeOrdering_InvT(const int n,double *volts) {
 */
 
 void Tools::SincInterpolation(int n1, double *x1, double *y1, int n2, double *x2, double *y2){
-
     /*
     * The Whittaker-Shannon interpolator is useful in the case of band-limited data.
     * Otherwise known as "sinc" interpolation, it protects the fidelity of the frequency spectrum of the signal.
@@ -551,18 +550,44 @@ void Tools::SincInterpolation(int n1, double *x1, double *y1, int n2, double *x2
         // or after the last sample of the input array (x1[n1-1])
         // if so, then we are asking for the function to *extrapolate*, not *interpolate*
         // just use the first/last sample, which replicates the behavior in SimpleLinearInterpolation_OutZero
-        
-        if(x2[samp]<first_input_sample){
+
+        if(x2[samp] < first_input_sample){
             // before first sample, set to 0 
             y2[samp] = 0.;
         }
-        else if(x2[samp]>last_input_sample){
+        else if(x2[samp] > last_input_sample){
             // after last sample, set to 0 
             y2[samp] = 0.;
         }
         else{
+            // Snap query to nearest grid point. Boost asserts (query-t0)/dT
+            // is an exact integer. We reconstruct the query as t0 + n*dT so
+            // Boost computes (t0 + n*dT - t0)/dT. If this still isn't exact
+            // due to floating-point non-associativity, fall back to direct
+            // sinc evaluation to avoid the abort.
+            //double x_norm    = (x2[samp] - t0) / dT;
+            //double x_nearest = std::round(x_norm);
+            //double query     = t0 + x_nearest * dT;
+
+            // clamp to valid range
+            //if(query < first_input_sample) query = first_input_sample;
+            //if(query > last_input_sample)  query = last_input_sample;
+
+            // verify Boost's internal check will pass before calling it
+            //double x_check = (query - t0) / dT;
+            //if(std::floor(x_check) != std::ceil(x_check)){
+                // floating-point non-associativity means Boost would abort
+                // fall back to direct sinc evaluation at the snapped index
+                //int k = (int)x_nearest;
+                //if(k < 0)   k = 0;
+                //if(k >= n1) k = n1-1;
+                //y2[samp] = y1[k];
+            //}
+            //else{
+            //y2[samp] = interpolator(query);
             // in the range of support, do interpolation
             y2[samp] = interpolator(x2[samp]);
+            //}
         }
     }
 }

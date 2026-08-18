@@ -339,11 +339,11 @@ int main(int argc, char **argv) {   // read setup.txt file
 
     while (inu < nuLimit){
         check_station_DC = 0;
-        if ( settings1->DEBUG_MODE_ON==0 ) {
-            std::cerr<<"*";
-            if ( Events_Thrown%100 == 0 )
-                cout<<"Thrown "<<Events_Thrown<<endl;
-        }
+        //if ( settings1->DEBUG_MODE_ON==0 ) {
+        //    std::cerr<<"*";
+        //    if ( Events_Thrown%100 == 0 )
+        //        cout<<"Thrown "<<Events_Thrown<<endl;
+        //}
 
         event = new Event ( settings1, spectra, primary1, icemodel, detector, signal, sec1, Events_Thrown );
         if(event->Nu_Interaction.size()<1){

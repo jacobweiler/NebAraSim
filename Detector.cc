@@ -32,6 +32,56 @@ ClassImp(Antenna_string);
 ClassImp(ARA_station);
 
 
+struct AntennaCoord {
+    double x, y, z;
+};
+
+std::vector<AntennaCoord> ReadAntennaCoordinateFile(const std::string& filename) {
+    std::vector<AntennaCoord> coords;
+    std::ifstream file(filename.c_str());
+    std::string line;
+
+    if (!file.is_open()) {
+        throw std::runtime_error("Could not open antenna coordinate file: " + filename);
+    }
+
+    while (getline(file, line)) {
+        // skip comment lines and empty lines
+        if (line.empty() || line[0] == '/') continue;
+
+        // strip inline comments
+        size_t comment_pos = line.find("//");
+        if (comment_pos != std::string::npos) {
+            line = line.substr(0, comment_pos);
+        }
+
+        // trim whitespace
+        size_t first = line.find_first_not_of(" \t");
+        if (first == std::string::npos) continue;
+        line = line.substr(first);
+
+        // parse x,y,z
+        std::stringstream ss(line);
+        std::string token;
+        AntennaCoord coord;
+        try {
+            getline(ss, token, ','); coord.x = atof(token.c_str());
+            getline(ss, token, ','); coord.y = atof(token.c_str());
+            getline(ss, token, ','); coord.z = atof(token.c_str());
+            coords.push_back(coord);
+        }
+        catch (...) {
+            std::cerr << "Warning: could not parse coordinate line: "
+                      << line << std::endl;
+        }
+    }
+    file.close();
+
+    std::cout << "Read " << coords.size()
+              << " antenna coordinates from " << filename << std::endl;
+    return coords;
+}
+
 Detector::Detector() {
     //Default constructor
 }
@@ -439,6 +489,12 @@ Detector::Detector(Settings * settings1, IceModel * icesurface, string setupfile
         // set antenna values from parameters
         // set station positions
         if (settings1 -> READGEOM == 0) { // use idealized geometry
+             // read coordinate file once before station loop
+            std::vector<AntennaCoord> coords;
+            if (settings1->USE_ANTENNA_COORD_FILE) {
+                coords = ReadAntennaCoordinateFile(settings1->ANTENNA_COORD_FILE);
+                std::cout << "Using custom antenna depths from file; x,y from idealized geometry." << std::endl;
+            }
 
             for (int i = 0; i < stations.size(); i++) {
 
@@ -462,14 +518,18 @@ Detector::Detector(Settings * settings1, IceModel * icesurface, string setupfile
                     for (int j = 0; j < stations[i].strings.size(); j++) {
                         for (int k = 0; k < stations[i].strings[j].antennas.size(); k++) {
 
-                            if (settings1 -> BH_ANT_SEP_DIST_ON == 0) {
+                            if (settings1->USE_ANTENNA_COORD_FILE) {
+                                // flat index: string j, antenna k
+                                int flat_idx = j * params.number_of_antennas_string + k;
+                                stations[i].strings[j].antennas[k].SetZ(coords[flat_idx].z);
+                            }
+                            else if (settings1->BH_ANT_SEP_DIST_ON == 0) {
                                 stations[i].strings[j].antennas[k].SetZ(-z_max + z_btw * k);
                             }
-                            else if (settings1 -> BH_ANT_SEP_DIST_ON == 1) {
+                            else if (settings1->BH_ANT_SEP_DIST_ON == 1) {
                                 z_btw_total = 0.;
-                                for (int l = 0; l < k + 1; l++) 
+                                for (int l = 0; l < k + 1; l++)
                                     z_btw_total += z_btw_array[l];
-                                
                                 stations[i].strings[j].antennas[k].SetZ(-z_max + z_btw_total);
                             }
 
@@ -1682,6 +1742,20 @@ Detector::Detector(Settings * settings1, IceModel * icesurface, string setupfile
         ImportStationInfo(settings1, 0, settings1 -> DETECTOR_STATION);
         #endif
 
+        if (settings1->USE_ANTENNA_COORD_FILE) {
+            std::vector<AntennaCoord> coords = ReadAntennaCoordinateFile(settings1->ANTENNA_COORD_FILE);
+            std::cout << "Using custom antenna depths from file (mode==4); x,y from AraGeomTool." << std::endl;
+            int flat_idx = 0;
+            for (int j = 0; j < (int)stations[0].strings.size(); j++) {
+                for (int k = 0; k < (int)stations[0].strings[j].antennas.size(); k++) {
+                    stations[0].strings[j].antennas[k].SetZ(coords[flat_idx].z);
+                    std::cout << "  string=" << j << " ant=" << k
+                              << " z=" << coords[flat_idx].z << " m" << std::endl;
+                    flat_idx++;
+                }
+            }
+        }
+
         std::cout << "Imported Station info" << std::endl;
 
         int stationID = settings1 -> DETECTOR_STATION;
@@ -2300,14 +2374,14 @@ inline void Detector::ReadAllAntennaGains(Settings *settings1){
         HgainFile = string(getenv("ARA_SIM_DIR"))+"/data/antennas/realizedGain/In_situ_HPol_Model.txt";         
     }
     else if (settings1->ANTENNA_MODE == 5) { //Adding antenna mode for Kansas lab measurements.
-        VgainFile = string(getenv("ARA_SIM_DIR"))+"/data/antennas/realizedGain/ARA_BVpol_RealizedGainAndPhase_Copol_Kansas2024.txt.gz";
-        VgainTopFile = string(getenv("ARA_SIM_DIR"))+"/data/antennas/realizedGain/ARA_TVpol_RealizedGainAndPhase_Copol_Kansas2024.txt.gz";
-        HgainFile = string(getenv("ARA_SIM_DIR"))+"/data/antennas/realizedGain/ARA_Hpol_RealizedGainAndPhase_Copol_Kansas2024.txt.gz";         
+        VgainFile = string(getenv("ARA_SIM_DIR"))+"/data/antennas/realizedGain/ARA_BVpol_RealizedGainAndPhase_Copol_Kansas2024.txt";
+        VgainTopFile = string(getenv("ARA_SIM_DIR"))+"/data/antennas/realizedGain/ARA_TVpol_RealizedGainAndPhase_Copol_Kansas2024.txt";
+        HgainFile = string(getenv("ARA_SIM_DIR"))+"/data/antennas/realizedGain/ARA_Hpol_RealizedGainAndPhase_Copol_Kansas2024.txt";         
     }
-    else if (settings1->ANTENNA_MODE == 6) { //Adding antenna mode for custom gains.
-        VgainFile = string(getenv("ARA_SIM_DIR"))+"/data/antennas/realizedGain/ARA_BVpol_RealizedGainAndPhase_Copol_Custom.txt";
-        VgainTopFile = string(getenv("ARA_SIM_DIR"))+"/data/antennas/realizedGain/ARA_TVpol_RealizedGainAndPhase_Copol_Custom.txt";
-        HgainFile = string(getenv("ARA_SIM_DIR"))+"/data/antennas/realizedGain/ARA_Hpol_RealizedGainAndPhase_Copol_Custom.txt";         
+    else if (settings1->ANTENNA_MODE == 6) { //Adding antenna mode for custom gains (takes full path).
+        VgainFile = string( settings1->VPOL_GAIN_FILE );
+        VgainTopFile = string( settings1->VTOP_GAIN_FILE );
+        HgainFile = string( settings1->HPOL_GAIN_FILE );        
     }
     
     // Check for ALL_ANT_V_ON, then set all antennas to VPol if true
@@ -2732,10 +2806,8 @@ double Detector::GetTransm_OutZero(int ch, double freq, double antenna_target_me
 }
 
 double Detector::GetGainBin(int ifreq, int itheta, int iphi, int ant_m, int string_number, int ant_number, bool useInTransmitterMode) {
-    
     //Initialize pointer to dynamically point to the gain for chosen antenna.  The structure of this pointer matches that of the global gain arrays defined in Detector.h.
     vector<vector<double> > *tempGain = nullptr;
-
     vector<double> * F;   
  
     //Assign local pointer to gain array specified in the function argument
@@ -2788,21 +2860,19 @@ double Detector::GetGainBin(int ifreq, int itheta, int iphi, int ant_m, int stri
     }
     else {
         F = &Freq;
-    }  
- 
+    }
 
     // check if angles range actually theta 0-180, phi 0-360
     int i = itheta;
     int j = iphi;
 
-    if ( j == 72 ) { 
+    if ( j == 72 ) {
         j = 0;
     }
 
     int angle_bin = 37*j+i;
 
     return tempGain->at(ifreq).at(angle_bin); 
-    
 }
 
 double Detector::GetGain(double freq, double theta, double phi, int ant_m, int ant_o, double antenna_target_medium_n) { // using Interpolation on multidimensions!
