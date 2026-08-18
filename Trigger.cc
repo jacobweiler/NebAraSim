@@ -154,14 +154,13 @@ void Trigger::SetMeanRmsDiode(Settings *settings1, Detector *detector, Report *r
 
     // set meandiode
     // same with icemc -> anita -> Initialize
-    //cerr<<"Preparing Noise"<<endl;
+    cerr<<"Preparing Noise"<<endl;
 
     // if using default noise temp setting (same temp for all chs)
     if (settings1->NOISE_CHANNEL_MODE == 0) {
         
         int ngeneratedevents=settings1->NOISE_EVENTS;  // should this value read at Settings class
-        std::vector<double> v_noise_vec(settings1->DATA_BIN_SIZE, 0.0);
-        double* v_noise = v_noise_vec.data();
+        double v_noise[settings1->DATA_BIN_SIZE];    // noise voltage time domain (with filter applied)
         
         // Prepare to save data
         meandiode = 0.;
@@ -169,23 +168,21 @@ void Trigger::SetMeanRmsDiode(Settings *settings1, Detector *detector, Report *r
         rmsvoltage = 0.;
         
         // make the size of v_noise_timedomain_diode ngeneratedevents (this will be huge!)
-        v_noise_timedomain.clear();
-        v_noise_timedomain.resize(ngeneratedevents);
-        v_noise_timedomain_diode.clear();
+        v_noise_timedomain.resize(ngeneratedevents);  
         v_noise_timedomain_diode.resize(ngeneratedevents);
         
         // Get all `ngeneratedevents` noise waveforms
-        //if ( ngeneratedevents > 10 ) {
-        //    cerr<<"Generating noise waveforms"<<endl;
-        //}
+        if ( ngeneratedevents > 10 ) {
+            cerr<<"Generating noise waveforms"<<endl;
+        }
         for (int i=0; i<ngeneratedevents; i++) {
 
             // Print updates to cerr
-            //if ( ngeneratedevents > 10 ){
-            //    if ((i)%(ngeneratedevents/10) == 0) {
-            //        cerr<< (i/ngeneratedevents)*100 <<"% done"<<endl;
-            //    }
-            //}
+            if ( ngeneratedevents > 10 ){
+                if ((i)%(ngeneratedevents/10) == 0) {
+                    cerr<< (i/ngeneratedevents)*100 <<"% done"<<endl;
+                }
+            }
 
             // get v_noise array (noise voltage in time domain)
             report->GetNoiseWaveforms(settings1, detector, V_noise_freqbin, v_noise);
@@ -217,22 +214,22 @@ void Trigger::SetMeanRmsDiode(Settings *settings1, Detector *detector, Report *r
             }
 
         }   // get meandiode with `ngeneratedevents` noisewaveforms;
-        //if ( ngeneratedevents > 10 ) {
-        //    cerr<< "100% done"<<endl;
-        //}
+        if ( ngeneratedevents > 10 ) {
+            cerr<< "100% done"<<endl;
+        }
         
         // Since v_noise_timedomain_diode's waveforms are still stored, we can just calculate rms from them
-        //if ( ngeneratedevents > 10 ) {
-        //    cerr<<"Calculating noise waveforms for RMS"<<endl;
-        //}
+        if ( ngeneratedevents > 10 ) {
+            cerr<<"Calculating noise waveforms for RMS"<<endl;
+        }
         for (int i=0; i<ngeneratedevents; i++) {
 
             // Print updates to cerr
-            //if ( ngeneratedevents > 10 ){
-            //    if ((i)%(ngeneratedevents/10) == 0) {
-            //        cerr<< (i/ngeneratedevents)*100 <<"% done"<<endl;
-            //    }
-            //}
+            if ( ngeneratedevents > 10 ){
+                if ((i)%(ngeneratedevents/10) == 0) {
+                    cerr<< (i/ngeneratedevents)*100 <<"% done"<<endl;
+                }
+            }
 
             // Add contribution from this bin to the mean RMS we're calculating
             for (int m=(int)(maxt_diode/TIMESTEP); m<settings1->DATA_BIN_SIZE; m++) {
@@ -245,15 +242,15 @@ void Trigger::SetMeanRmsDiode(Settings *settings1, Detector *detector, Report *r
             }
 
         }   // get rmsdiode with `ngeneratedevents` noisewaveforms
-        //cerr<< "100% done"<<endl;
+        cerr<< "100% done"<<endl;
 
         // Finish RMS calculation and print out
         rmsdiode=sqrt(rmsdiode);
         rmsvoltage=sqrt(rmsvoltage);
-        //cout << "From pure noise waveforms, diode responses" << "\n";
-        //cout << "mean, rms diode are " << meandiode << " " << rmsdiode << "\n";
-        //cout << "rms voltage is "<<rmsvoltage<<"\n";
-        //cout<<" DATA_BIN_SIZE : "<<settings1->DATA_BIN_SIZE<<"\n";
+        cout << "From pure noise waveforms, diode responses" << "\n";
+        cout << "mean, rms diode are " << meandiode << " " << rmsdiode << "\n";
+        cout << "rms voltage is "<<rmsvoltage<<"\n";
+        cout<<" DATA_BIN_SIZE : "<<settings1->DATA_BIN_SIZE<<"\n";
 
         // if we are doing pure signal trigger analysis, set all noise waveform values to 0
         if (settings1->TRIG_ANALYSIS_MODE == 1 ) {
@@ -271,16 +268,16 @@ void Trigger::SetMeanRmsDiode(Settings *settings1, Detector *detector, Report *r
     else if (settings1->NOISE_CHANNEL_MODE == 1) {
 
         int ngeneratedevents=settings1->NOISE_EVENTS;  // should this value read at Settings class
-        std::vector<double> v_noise_vec(settings1->DATA_BIN_SIZE, 0.0);
-        double* v_noise = v_noise_vec.data();
+        double v_noise[settings1->DATA_BIN_SIZE];    // noise voltage time domain (with filter applied)
 
         int num_chs = detector->params.number_of_antennas;
         cout << "num chs: " << num_chs << endl;
 
         // Prepare to save data for all `num_chs` channels
-        v_noise_timedomain_ch.clear();
+        meandiode_ch.resize(num_chs);
+        rmsdiode_ch.resize(num_chs);
+        rmsvoltage_ch.resize(num_chs);
         v_noise_timedomain_ch.resize(num_chs);
-        v_noise_timedomain_diode_ch.clear();
         v_noise_timedomain_diode_ch.resize(num_chs);
 
         for (int i=0; i<num_chs; i++) {
@@ -296,19 +293,19 @@ void Trigger::SetMeanRmsDiode(Settings *settings1, Detector *detector, Report *r
         }
 
         // Get all `ngeneratedevents` noise waveforms for `num_chs` channels
-        //if ( ngeneratedevents > 10 ) {
-        //    cerr<<"Generating noise waveforms"<<endl;
-        //}
+        if ( ngeneratedevents > 10 ) {
+            cerr<<"Generating noise waveforms"<<endl;
+        }
         for (int ch=0; ch<num_chs; ch++) {
 
             for (int i=0; i<ngeneratedevents; i++) {
 
                 // Print updates to cerr
-                //if ( ngeneratedevents > 10 ){
-                //    if ((i)%(ngeneratedevents/10) == 0) {
-                //        cerr<< (i/ngeneratedevents)*100 <<"% done for ch"<<ch<<endl;
-                //    }
-                //}
+                if ( ngeneratedevents > 10 ){
+                    if ((i)%(ngeneratedevents/10) == 0) {
+                        cerr<< (i/ngeneratedevents)*100 <<"% done for ch"<<ch<<endl;
+                    }
+                }
 
                 // get v_noise array (noise voltage in time domain)
                 report->GetNoiseWaveforms_ch(settings1, detector, V_noise_freqbin_ch[ch], v_noise, ch);
@@ -343,24 +340,24 @@ void Trigger::SetMeanRmsDiode(Settings *settings1, Detector *detector, Report *r
             }   // get meandiode with `ngeneratedevents` noisewaveforms
 
         } // loop over chs
-        //if ( ngeneratedevents > 10 ) {
-        //    cerr<< "100% done"<<endl;
-        //}
+        if ( ngeneratedevents > 10 ) {
+            cerr<< "100% done"<<endl;
+        }
 
         // Since v_noise_timedomain_diode's waveforms are still stored, we can just calculate rms from them
-        //if ( ngeneratedevents > 10 ) {
-        //    cerr<<"Calculating noise waveforms RMS"<<endl;
-        //}
+        if ( ngeneratedevents > 10 ) {
+            cerr<<"Calculating noise waveforms RMS"<<endl;
+        }
         for (int ch=0; ch<num_chs; ch++) {
 
             for (int i=0; i<ngeneratedevents; i++) {
 
                 // Print updates to cerr
-                //if ( ngeneratedevents > 10 ){
-                //    if ((i)%(ngeneratedevents/10) == 0) {
-                //        cerr<< (i/ngeneratedevents)*100 <<"% done for ch"<<ch<<endl;
-                //    }
-                //}
+                if ( ngeneratedevents > 10 ){
+                    if ((i)%(ngeneratedevents/10) == 0) {
+                        cerr<< (i/ngeneratedevents)*100 <<"% done for ch"<<ch<<endl;
+                    }
+                }
 
                 // Add contribution from this bin to the mean RMS we're calculating
                 for (int m=(int)(maxt_diode/TIMESTEP);m<settings1->DATA_BIN_SIZE;m++) {
@@ -374,18 +371,18 @@ void Trigger::SetMeanRmsDiode(Settings *settings1, Detector *detector, Report *r
 
             }   // get rmsdiode with `ngeneratedevents` noisewaveforms
         }
-        //if ( ngeneratedevents > 10 ) {
-        //    cerr<< "100% done"<<endl;
-        //}
+        if ( ngeneratedevents > 10 ) {
+            cerr<< "100% done"<<endl;
+        }
 
         // Finish RMS calculation and print out
-        //cout << "From pure noise waveforms, diode responses" << "\n";
+        cout << "From pure noise waveforms, diode responses" << "\n";
         for (int ch=0; ch<num_chs; ch++) {
             rmsdiode_ch[ch]=sqrt(rmsdiode_ch[ch]);
             rmsvoltage_ch[ch]=sqrt(rmsvoltage_ch[ch]);
-            //cout << "For ch"<<ch<<" mean, rms diode are " << meandiode_ch[ch] << " " << rmsdiode_ch[ch] << " rms voltage is "<<rmsvoltage_ch[ch]<<"\n";
+            cout << "For ch"<<ch<<" mean, rms diode are " << meandiode_ch[ch] << " " << rmsdiode_ch[ch] << " rms voltage is "<<rmsvoltage_ch[ch]<<"\n";
         }
-        //cout<<" DATA_BIN_SIZE : "<<settings1->DATA_BIN_SIZE<<"\n";
+        cout<<" DATA_BIN_SIZE : "<<settings1->DATA_BIN_SIZE<<"\n";
 
         // if we are doing pure signal trigger analysis, set all noise waveform values to 0
         if (settings1->TRIG_ANALYSIS_MODE == 1 ) {
@@ -405,8 +402,7 @@ void Trigger::SetMeanRmsDiode(Settings *settings1, Detector *detector, Report *r
     else if (settings1->NOISE_CHANNEL_MODE == 2) {
 
         int ngeneratedevents=settings1->NOISE_EVENTS;  // should this value read at Settings class
-        std::vector<double> v_noise_vec(settings1->DATA_BIN_SIZE, 0.0);
-        double* v_noise = v_noise_vec.data();
+        double v_noise[settings1->DATA_BIN_SIZE];    // noise voltage time domain (with filter applied)
 
         int num_chs = 8+1;// 8 chs for separated systemp temp and one more for sharing temp
 
@@ -430,19 +426,19 @@ void Trigger::SetMeanRmsDiode(Settings *settings1, Detector *detector, Report *r
         }
 
         // Get all `ngeneratedevents` noise waveforms for `num_chs` channels
-        //if ( ngeneratedevents > 10 ) {
-        //    cerr<<"Generating noise waveforms"<<endl;
-        //}
+        if ( ngeneratedevents > 10 ) {
+            cerr<<"Generating noise waveforms"<<endl;
+        }
         for (int ch=0; ch<num_chs; ch++) {
 
             for (int i=0; i<ngeneratedevents; i++) {
 
                 // Print updates to cerr
-                //if ( ngeneratedevents > 10 ){
-                //    if ((i)%(ngeneratedevents/10) == 0) {
-                //        cerr<< (i/ngeneratedevents)*100 <<"% done for ch"<<ch<<endl;
-                //    }
-                //}
+                if ( ngeneratedevents > 10 ){
+                    if ((i)%(ngeneratedevents/10) == 0) {
+                        cerr<< (i/ngeneratedevents)*100 <<"% done for ch"<<ch<<endl;
+                    }
+                }
 
                 // get v_noise array (noise voltage in time domain)
                 report->GetNoiseWaveforms_ch(settings1, detector, V_noise_freqbin_ch[ch], v_noise, ch);
@@ -477,24 +473,24 @@ void Trigger::SetMeanRmsDiode(Settings *settings1, Detector *detector, Report *r
             }   // get meandiode with `ngeneratedevents` noisewaveforms
 
         } // loop over chs
-        //if ( ngeneratedevents > 10 ) {
-        //    cerr<< "100% done"<<endl;
-        //}
+        if ( ngeneratedevents > 10 ) {
+            cerr<< "100% done"<<endl;
+        }
 
         // Since v_noise_timedomain_diode's waveforms are still stored, we can just calculate rms from them
-        //if ( ngeneratedevents > 10 ) {
-        //    cerr<<"Calculating noise waveforms RMS"<<endl;
-        //}
+        if ( ngeneratedevents > 10 ) {
+            cerr<<"Calculating noise waveforms RMS"<<endl;
+        }
         for (int ch=0; ch<num_chs; ch++) {
 
             for (int i=0; i<ngeneratedevents; i++) {
 
                 // Print updates to cerr
-                //if ( ngeneratedevents > 10 ){
-                //    if ((i)%(ngeneratedevents/10) == 0) {
-                //        cerr<< (i/ngeneratedevents)*100 <<"% done for ch"<<ch<<endl;
-                //    }
-                //}
+                if ( ngeneratedevents > 10 ){
+                    if ((i)%(ngeneratedevents/10) == 0) {
+                        cerr<< (i/ngeneratedevents)*100 <<"% done for ch"<<ch<<endl;
+                    }
+                }
 
                 // Add contribution from this bin to the mean RMS we're calculating
                 for (int m=(int)(maxt_diode/TIMESTEP);m<settings1->DATA_BIN_SIZE;m++) {
@@ -507,18 +503,18 @@ void Trigger::SetMeanRmsDiode(Settings *settings1, Detector *detector, Report *r
                 }
             }   // get rmsdiode with `ngeneratedevents` noisewaveforms
         }
-        //if ( ngeneratedevents > 10 ) {
-        //    cerr<< "100% done"<<endl;
-        //}
+        if ( ngeneratedevents > 10 ) {
+            cerr<< "100% done"<<endl;
+        }
 
         // Finish RMS calculation and print out
-        //cout << "From pure noise waveforms, diode responses" << "\n";
+        cout << "From pure noise waveforms, diode responses" << "\n";
         for (int ch=0; ch<num_chs; ch++) {
             rmsdiode_ch[ch]=sqrt(rmsdiode_ch[ch]);
             rmsvoltage_ch[ch]=sqrt(rmsvoltage_ch[ch]);
-            //cout << "For ch"<<ch<<" mean, rms diode are " << meandiode_ch[ch] << " " << rmsdiode_ch[ch] << " rms voltage is "<<rmsvoltage_ch[ch]<<"\n";
+            cout << "For ch"<<ch<<" mean, rms diode are " << meandiode_ch[ch] << " " << rmsdiode_ch[ch] << " rms voltage is "<<rmsvoltage_ch[ch]<<"\n";
         }
-        //cout<<" DATA_BIN_SIZE : "<<settings1->DATA_BIN_SIZE<<"\n";
+        cout<<" DATA_BIN_SIZE : "<<settings1->DATA_BIN_SIZE<<"\n";
 
         // if we are doing pure signal trigger analysis, set all noise waveform values to 0
         if (settings1->TRIG_ANALYSIS_MODE == 1 ) {
@@ -627,11 +623,10 @@ void Trigger::GetNewNoiseWaveforms(Settings *settings1, Detector *detector, Repo
     {
 
         int ngeneratedevents = settings1->NOISE_EVENTS;  // should this value read at Settings class
-        DATA_BIN_SIZE = settings1->DATA_BIN_SIZE;  // sync cached value
-        std::vector<double> v_noise_vec(settings1->DATA_BIN_SIZE, 0.0);
-        double* v_noise = v_noise_vec.data();
-        v_noise_timedomain.assign(ngeneratedevents, vector<double>(DATA_BIN_SIZE, 0.0));
-        v_noise_timedomain_diode.assign(ngeneratedevents, vector<double>(DATA_BIN_SIZE, 0.0));
+        double v_noise[settings1->DATA_BIN_SIZE];  // noise voltage time domain (with filter applied)
+
+        v_noise_timedomain.resize(ngeneratedevents, vector<double>(DATA_BIN_SIZE));  // make the size of v_noise_timedomain_diode as ngeneratedevents (this will be huge!)
+        v_noise_timedomain_diode.resize(ngeneratedevents, vector<double>(DATA_BIN_SIZE));  // make the size of v_noise_timedomain_diode as ngeneratedevents (this will be huge!)
 
         if (settings1->TRIG_ANALYSIS_MODE != 1)
         {
@@ -676,19 +671,19 @@ void Trigger::GetNewNoiseWaveforms(Settings *settings1, Detector *detector, Repo
     // if using mode 1 noise temp setting (different temp for each chs)
     else if (settings1->NOISE_CHANNEL_MODE == 1)
     {
-        int ngeneratedevents = settings1->NOISE_EVENTS;
-        DATA_BIN_SIZE = settings1->DATA_BIN_SIZE;  // sync cached value
-        std::vector<double> v_noise(DATA_BIN_SIZE, 0.0);
+        int ngeneratedevents = settings1->NOISE_EVENTS;  // should this value read at Settings class
+        std::vector<double> v_noise(settings1->DATA_BIN_SIZE);  // noise voltage time domain (with filter applied)
 
         int num_chs = detector->params.number_of_antennas;
 
-        v_noise_timedomain_ch.assign(num_chs, vector<vector<double>>());
-        v_noise_timedomain_diode_ch.assign(num_chs, vector<vector<double>>());
+        v_noise_timedomain_ch.resize(num_chs);  // make the size of v_noise_timedomain_diode as number of chs
+        v_noise_timedomain_diode_ch.resize(num_chs);  // make the size of v_noise_timedomain_diode as number of chs
 
         for (int i = 0; i < num_chs; i++)
         {
-            v_noise_timedomain_ch[i].assign(ngeneratedevents, vector<double>(DATA_BIN_SIZE, 0.0));
-            v_noise_timedomain_diode_ch[i].assign(ngeneratedevents, vector<double>(DATA_BIN_SIZE, 0.0));
+            v_noise_timedomain_ch[i].resize(ngeneratedevents, vector<double>(settings1->DATA_BIN_SIZE));  // make the size of v_noise_timedomain_diode as ngeneratedevents (this will be huge!)
+            v_noise_timedomain_diode_ch[i].resize(ngeneratedevents, vector<double>(settings1->DATA_BIN_SIZE));  // make the size of v_noise_timedomain_diode as ngeneratedevents (this will be huge!)
+
         }
 
         if (settings1->TRIG_ANALYSIS_MODE != 1)
@@ -739,18 +734,17 @@ void Trigger::GetNewNoiseWaveforms(Settings *settings1, Detector *detector, Repo
     else if (settings1->NOISE_CHANNEL_MODE == 2) {
 
         int ngeneratedevents = settings1->NOISE_EVENTS;  // should this value read at Settings class
-        DATA_BIN_SIZE = settings1->DATA_BIN_SIZE;  // sync cached value
-        std::vector<double> v_noise_vec(settings1->DATA_BIN_SIZE, 0.0);
-        double* v_noise = v_noise_vec.data();
+        double v_noise[settings1->DATA_BIN_SIZE];  // noise voltage time domain (with filter applied)
 
         int num_chs = 8 + 1; // 8 chs for separated systemp temp and one more for sharing temp
 
-        v_noise_timedomain_ch.assign(num_chs, vector<vector<double>>());
-        v_noise_timedomain_diode_ch.assign(num_chs, vector<vector<double>>());
-        
+        v_noise_timedomain_ch.resize(num_chs);  // make the size of v_noise_timedomain_diode as number of chs
+        v_noise_timedomain_diode_ch.resize(num_chs);  // make the size of v_noise_timedomain_diode as number of chs
+
         for (int i = 0; i < num_chs; i++) {
-            v_noise_timedomain_ch[i].assign(ngeneratedevents, vector<double>(DATA_BIN_SIZE, 0.0));
-            v_noise_timedomain_diode_ch[i].assign(ngeneratedevents, vector<double>(DATA_BIN_SIZE, 0.0));
+            v_noise_timedomain_ch[i].resize(ngeneratedevents, vector<double>(DATA_BIN_SIZE));  // make the size of v_noise_timedomain_diode as ngeneratedevents (this will be huge!)
+            v_noise_timedomain_diode_ch[i].resize(ngeneratedevents, vector<double>(DATA_BIN_SIZE));  // make the size of v_noise_timedomain_diode as ngeneratedevents (this will be huge!)
+
         }
 
         if (settings1->TRIG_ANALYSIS_MODE != 1) {

@@ -47,9 +47,9 @@ outputdir="outputs"; // directory where outputs go
  SIGMA_SELECT=0; // when in SIGMAPARAM=1 case, 0 : (default) use mean value, 1 : use upper bound, 2 : use lower bound
 
 
-HPOL_GAIN_FILE=string(getenv("ARA_SIM_DIR"))+"/data/antennas/realizedGain/ARA_dipoletest1_output.txt"; // Default to original Ara Data
-VTOP_GAIN_FILE=string(getenv("ARA_SIM_DIR"))+"/data/antennas/realizedGain/ARA_bicone6in_output.txt"; // Default to original Ara Data
-VPOL_GAIN_FILE=string(getenv("ARA_SIM_DIR"))+"/data/antennas/realizedGain/ARA_bicone6in_output.txt"; // Default to original Ara Data
+HPOL_GAIN_FILE=string(getenv("ARA_SIM_DIR"))+"/data/antennas/realizedGain/ARA_BVpol_RealizedGainAndPhase_Copol_Kansas2024.txt"; // Default to original Ara Data
+VTOP_GAIN_FILE=string(getenv("ARA_SIM_DIR"))+"/data/antennas/realizedGain/ARA_TVpol_RealizedGainAndPhase_Copol_Kansas2024.txt"; // Default to original Ara Data
+VPOL_GAIN_FILE=string(getenv("ARA_SIM_DIR"))+"/data/antennas/realizedGain/ARA_Hpol_RealizedGainAndPhase_Copol_Kansas2024.txt"; // Default to original Ara Data
 
 ANTENNA_COORD_FILE = "";
 USE_ANTENNA_COORD_FILE = false;
@@ -975,49 +975,49 @@ int Settings::CheckCompatibilitiesDetector(Detector *detector) {
 
     // check if the antenna gain is falling fast enough at low frequencies
     if (ANTENNA_MODE != 6){
+       {
+        double freq0 = detector->GetFreq(0); 
+        double freq1 = detector->GetFreq(1); 
+
+        // Vpols
         {
-            double freq0 = detector->GetFreq(0); 
-            double freq1 = detector->GetFreq(1); 
+            double gain0 = detector->GetGainBin(0, 0, 0, 0, 0, 0);
+            double gain1 = detector->GetGainBin(1, 0, 0, 0, 0, 0);
 
-            // Vpols
-            {
-                double gain0 = detector->GetGainBin(0, 0, 0, 0, 0, 0);
-                double gain1 = detector->GetGainBin(1, 0, 0, 0, 0, 0);
-
-                // calculate quantity proportional to heff
-                double heff0 = gain0 / freq0 / freq0; 
-                double heff1 = gain1 / freq1 / freq1;
-                if(heff0 > heff1) {
-                    cerr << "Vpol antenna gain may not be falling fast enough! Effective height may grow and introduce power at low frequencies." << endl;
-                    num_err++;
-                }
+            // calculate quantity proportional to heff
+            double heff0 = gain0 / freq0 / freq0; 
+            double heff1 = gain1 / freq1 / freq1;
+            if(heff0 > heff1) {
+                cerr << "Vpol antenna gain may not be falling fast enough! Effective height may grow and introduce power at low frequencies." << endl;
+                num_err++;
             }
-            
-            // TVpols
-            {
-                double gain0 = detector->GetGainBin(0, 0, 0, 0, 0, 2);
-                double gain1 = detector->GetGainBin(1, 0, 0, 0, 0, 2);
+        }
+        
+        // TVpols
+        {
+            double gain0 = detector->GetGainBin(0, 0, 0, 0, 0, 2);
+            double gain1 = detector->GetGainBin(1, 0, 0, 0, 0, 2);
 
-                // calculate quantity proportional to heff
-                double heff0 = gain0 / freq0 / freq0; 
-                double heff1 = gain1 / freq1 / freq1;
-                if(heff0 > heff1) {
-                    cerr << "TVpol antenna gain may not be falling fast enough! Effective height may grow and introduce power at low frequencies." << endl;
-                    num_err++;
-                }
+            // calculate quantity proportional to heff
+            double heff0 = gain0 / freq0 / freq0; 
+            double heff1 = gain1 / freq1 / freq1;
+            if(heff0 > heff1) {
+                cerr << "TVpol antenna gain may not be falling fast enough! Effective height may grow and introduce power at low frequencies." << endl;
+                num_err++;
             }
-            
-            // Hpols
-            {
-                double gain0 = detector->GetGainBin(0, 0, 0, 1);
-                double gain1 = detector->GetGainBin(1, 0, 0, 1);
+        }
+        
+        // Hpols
+        {
+            double gain0 = detector->GetGainBin(0, 0, 0, 1);
+            double gain1 = detector->GetGainBin(1, 0, 0, 1);
 
-                // calculate quantity proportional to heff
-                double heff0 = gain0 / freq0 / freq0; 
-                double heff1 = gain1 / freq1 / freq1;
-                if(heff0 > heff1) {
-                    cerr << "Hpol antenna gain may not be falling fast enough! Effective height may grow and introduce power at low frequencies." << endl;
-                    num_err++;
+            // calculate quantity proportional to heff
+            double heff0 = gain0 / freq0 / freq0; 
+            double heff1 = gain1 / freq1 / freq1;
+            if(heff0 > heff1) {
+                cerr << "Hpol antenna gain may not be falling fast enough! Effective height may grow and introduce power at low frequencies." << endl;
+                num_err++;
                 }
             }
         }

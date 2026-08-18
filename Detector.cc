@@ -1742,6 +1742,20 @@ Detector::Detector(Settings * settings1, IceModel * icesurface, string setupfile
         ImportStationInfo(settings1, 0, settings1 -> DETECTOR_STATION);
         #endif
 
+        if (settings1->USE_ANTENNA_COORD_FILE) {
+            std::vector<AntennaCoord> coords = ReadAntennaCoordinateFile(settings1->ANTENNA_COORD_FILE);
+            std::cout << "Using custom antenna depths from file (mode==4); x,y from AraGeomTool." << std::endl;
+            int flat_idx = 0;
+            for (int j = 0; j < (int)stations[0].strings.size(); j++) {
+                for (int k = 0; k < (int)stations[0].strings[j].antennas.size(); k++) {
+                    stations[0].strings[j].antennas[k].SetZ(coords[flat_idx].z);
+                    std::cout << "  string=" << j << " ant=" << k
+                              << " z=" << coords[flat_idx].z << " m" << std::endl;
+                    flat_idx++;
+                }
+            }
+        }
+
         std::cout << "Imported Station info" << std::endl;
 
         int stationID = settings1 -> DETECTOR_STATION;

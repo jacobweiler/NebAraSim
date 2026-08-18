@@ -565,27 +565,29 @@ void Tools::SincInterpolation(int n1, double *x1, double *y1, int n2, double *x2
             // Boost computes (t0 + n*dT - t0)/dT. If this still isn't exact
             // due to floating-point non-associativity, fall back to direct
             // sinc evaluation to avoid the abort.
-            double x_norm    = (x2[samp] - t0) / dT;
-            double x_nearest = std::round(x_norm);
-            double query     = t0 + x_nearest * dT;
+            //double x_norm    = (x2[samp] - t0) / dT;
+            //double x_nearest = std::round(x_norm);
+            //double query     = t0 + x_nearest * dT;
 
             // clamp to valid range
-            if(query < first_input_sample) query = first_input_sample;
-            if(query > last_input_sample)  query = last_input_sample;
+            //if(query < first_input_sample) query = first_input_sample;
+            //if(query > last_input_sample)  query = last_input_sample;
 
             // verify Boost's internal check will pass before calling it
-            double x_check = (query - t0) / dT;
-            if(std::floor(x_check) != std::ceil(x_check)){
+            //double x_check = (query - t0) / dT;
+            //if(std::floor(x_check) != std::ceil(x_check)){
                 // floating-point non-associativity means Boost would abort
                 // fall back to direct sinc evaluation at the snapped index
-                int k = (int)x_nearest;
-                if(k < 0)   k = 0;
-                if(k >= n1) k = n1-1;
-                y2[samp] = y1[k];
-            }
-            else{
-                y2[samp] = interpolator(query);
-            }
+                //int k = (int)x_nearest;
+                //if(k < 0)   k = 0;
+                //if(k >= n1) k = n1-1;
+                //y2[samp] = y1[k];
+            //}
+            //else{
+            //y2[samp] = interpolator(query);
+            // in the range of support, do interpolation
+            y2[samp] = interpolator(x2[samp]);
+            //}
         }
     }
 }
